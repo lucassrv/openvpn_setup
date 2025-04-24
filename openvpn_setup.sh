@@ -1,13 +1,13 @@
 #!/bin/bash
 set -e
 
-if [[ -z "$1" ]]; then
-  echo "❌ Usage: $0 YOUR_PUBLIC_IP_OR_FQDN"
+if [[ -z "$1" || -z "$2" ]]; then
+  echo "❌ Usage: $0 YOUR_PUBLIC_IP_OR_FQDN CLIENT_NAME"
   exit 1
 fi
 
 PUBLIC_IP="$1"
-CLIENT_NAME="client1"
+CLIENT_NAME="$2"
 EASYRSA_DIR=/etc/easy-rsa
 OUTPUT_DIR=~/client-configs
 
@@ -22,6 +22,12 @@ elif [[ "$PUBLIC_IP" =~ ^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
     fi
 else
     echo "❌ Invalid IP or FQDN: $PUBLIC_IP"
+    exit 1
+fi
+
+# Validate CLIENT_NAME
+if ! [[ "$CLIENT_NAME" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo "❌ Invalid CLIENT_NAME: $CLIENT_NAME. Use alphanumeric characters, hyphens, or underscores only."
     exit 1
 fi
 
@@ -92,7 +98,7 @@ echo "✅ Backup saved to ~/easy-rsa-backup-$(date +%F).tar.gz"
 echo "📁 Copying files to /etc/openvpn/..."
 sudo mkdir -p /etc/openvpn/
 sudo cp pki/ca.crt pki/private/server.key pki/issued/server.crt pki/dh.pem ta.key pki/crl.pem /etc/openvpn/
-sudo chmod 600 /etc/openvpn/{ca.crt,server.key,server.crt,dh.pem,ta.key}
+sudo chmod 600 ſ/etc/openvpn/{ca.crt,server.key,server.crt,dh.pem,ta.key}
 sudo chown root:root /etc/openvpn/{ca.crt,server.key,server.crt,dh.pem,ta.key}
 
 if getent group nogroup >/dev/null; then
