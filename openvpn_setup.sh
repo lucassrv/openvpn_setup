@@ -184,9 +184,17 @@ for file in ca.crt server.crt server.key dh.pem ta.key crl.pem; do
     fi
 done
 sudo systemctl start openvpn@server
-sudo systemctl enable openvpn@server
-sleep 2
-sudo journalctl -u openvpn@server --no-pager -n 15
+# Check if the service is active
+if systemctl is-active --quiet openvpn@server; then
+    echo "✅ OpenVPN service started successfully."
+    sudo systemctl enable openvpn@server
+    sleep 2
+    sudo journalctl -u openvpn@server --no-pager -n 30
+else
+    echo "❌ OpenVPN service failed to start. Check logs:"
+    sudo journalctl -u openvpn@server --no-pager -n 30
+    exit 1
+fi
 
 echo "🛠 Creating client config..."
 mkdir -p "$OUTPUT_DIR"
