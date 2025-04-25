@@ -98,7 +98,7 @@ echo "✅ Backup saved to ~/easy-rsa-backup-$(date +%F).tar.gz"
 echo "📁 Copying files to /etc/openvpn/..."
 sudo mkdir -p /etc/openvpn/
 sudo cp pki/ca.crt pki/private/server.key pki/issued/server.crt pki/dh.pem ta.key pki/crl.pem /etc/openvpn/
-sudo chmod 600 ſ/etc/openvpn/{ca.crt,server.key,server.crt,dh.pem,ta.key}
+sudo chmod 600 /etc/openvpn/{ca.crt,server.key,server.crt,dh.pem,ta.key}
 sudo chown root:root /etc/openvpn/{ca.crt,server.key,server.crt,dh.pem,ta.key}
 
 if getent group nogroup >/dev/null; then
