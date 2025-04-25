@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
 if [[ -z "$1" || -z "$2" ]]; then
