@@ -17,14 +17,7 @@ if pgrep openvpn >/dev/null; then
     echo "❌ OpenVPN processes still running."
     exit 1
 fi
-sudo apt purge -y openvpn easy-rsa
-sudo rm -rf /etc/openvpn/ /var/log/openvpn/ /etc/easy-rsa/ /var/log/openvpn.log
-sudo apt autoremove -y
-sudo apt clean
-sudo apt update
 
-echo "📦 Installing OpenVPN and Easy-RSA..."
-sudo DEBIAN_FRONTEND=noninteractive apt install -y openvpn easy-rsa iptables-persistent
 
 echo "🔧 Setting up Easy-RSA..."
 sudo mkdir -p "$EASYRSA_DIR"
