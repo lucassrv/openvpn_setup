@@ -77,23 +77,17 @@ EOF
 yes
 EOF
 
-./easyrsa gen-req server nopass || { echo "❌ Failed to generate server req"; exit 1; }
-./easyrsa sign-req server server <<EOF || { echo "❌ Failed to sign server cert"; exit 1; }
-yes
-EOF
+./easyrsa build-server-full server nopass || { echo "❌ Failed to generate server cert"; exit 1; }
+./easyrsa build-client-full "$CLIENT_NAME" nopass || { echo "❌ Failed to generate client cert"; exit 1; }
 
 ./easyrsa gen-dh || { echo "❌ Failed to generate DH params"; exit 1; }
 ./easyrsa gen-crl || { echo "❌ Failed to generate CRL"; exit 1; }
 openvpn --genkey --secret ta.key || { echo "❌ Failed to generate ta.key"; exit 1; }
 
-./easyrsa gen-req "$CLIENT_NAME" nopass || { echo "❌ Failed to generate client req"; exit 1; }
-./easyrsa sign-req client "$CLIENT_NAME" <<EOF || { echo "❌ Failed to sign client cert"; exit 1; }
-yes
-EOF
-
 echo "💾 Backing up Easy-RSA directory..."
 tar -czf ~/easy-rsa-backup-$(date +%F).tar.gz "$EASYRSA_DIR"
 echo "✅ Backup saved to ~/easy-rsa-backup-$(date +%F).tar.gz"
+echo "📌 To restore Easy-RSA, run: tar -xzf ~/easy-rsa-backup-$(date +%F).tar.gz -C /"
 
 echo "📁 Copying files to /etc/openvpn/..."
 sudo mkdir -p /etc/openvpn/
@@ -160,10 +154,11 @@ if [[ -z "$NIC" ]]; then
 fi
 echo "🛡 Configuring iptables (interface: $NIC)..."
 sudo iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o "$NIC" -j MASQUERADE
-sudo netfilter-persistent save
+sudo netfilter-persistent save || { echo "❌ Failed to save iptables rules"; exit 1; }
 
 echo "🧱 Setting up UFW..."
 if ! sudo ufw status | grep -q "active"; then
+    echo "⚠ Ensure SSH is on port 22 or manually allowed in UFW to avoid lockout."
     echo "🧱 Enabling UFW..."
     sudo ufw --force enable
 fi
@@ -173,6 +168,7 @@ sudo ufw reload
 echo "⚠ If using a cloud provider, ensure port 1194/UDP is open in the security group/firewall."
 
 echo "🚀 Starting and enabling OpenVPN service..."
+lsmod | grep tun || { echo "❌ TUN module not loaded"; sudo modprobe tun || exit 1; }
 if sudo netstat -tuln | grep -q ":1194"; then
     echo "❌ Port 1194 is already in use."
     exit 1
