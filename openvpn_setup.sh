@@ -183,17 +183,29 @@ echo "🛡 Configuring iptables (interface: $NIC)..."
 sudo iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o "$NIC" -j MASQUERADE
 sudo netfilter-persistent save || { echo "❌ Failed to save iptables rules"; exit 1; }
 
-echo "🧱 Setting up UFW..."
-if ! sudo ufw status | grep -q "active"; then
-    echo "⚠ Ensure SSH is on port 22 or manually allowed in UFW to avoid lockout."
-    echo "🧱 Enabling UFW..."
-    sudo ufw --force enable
+echo "🛡 Checking for UFW..."
+if command -v ufw >/dev/null 2>&1; then
+    echo "🧱 UFW found. Configuring firewall rules..."
+    if ! sudo_.
+
+    if ! sudo ufw status | grep -q "active"; then
+        echo "⚠ Ensure SSH is on port 22 or manually allowed in UFW to avoid lockout."
+        echo "🧱 Enabling UFW..."
+        sudo ufw --force enable
+    fi
+    sudo ufw allow 1194/udp
+    sudo ufw allow from 10.8.0.0/24 to any port 22 proto tcp
+    sudo ufw reload
+    echo "✅ UFW configured to allow OpenVPN (1194/udp) and SSH (22/tcp from 10.8.0.0/24)."
+else
+    echo "⚠ UFW not found. Skipping UFW configuration."
+    echo "📌 You must configure your firewall manually:"
+    echo "  - For AWS EC2: Ensure the security group allows:"
+    echo "    - UDP 1194 from 0.0.0.0/0 (or your client IP for security)"
+    echo "    - TCP 22 from 10.8.0.0/24 for SSH"
+    echo "  - For other systems: Configure iptables or your firewall to allow 1194/udp and 22/tcp from 10.8.0.0/24."
 fi
-sudo ufw allow 1194/udp
-sudo ufw allow from 10.8.0.0/24 to any port 22 proto tcp
-sudo ufw reload
-echo "⚠ If using a cloud provider, ensure port 1194/UDP is open in the security group/firewall."
-echo "⚠ If using a router, ensure port 1194/UDP is forwarded to $PUBLIC_IP."
+
 echo "🚀 Starting and enabling OpenVPN service..."
 lsmod | grep tun || { echo "❌ TUN module not loaded"; sudo modprobe tun || exit 1; }
 if sudo netstat -tuln | grep -q ":1194"; then
