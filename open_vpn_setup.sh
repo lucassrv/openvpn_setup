@@ -186,8 +186,6 @@ sudo netfilter-persistent save || { echo "❌ Failed to save iptables rules"; ex
 echo "🛡 Checking for UFW..."
 if command -v ufw >/dev/null 2>&1; then
     echo "🧱 UFW found. Configuring firewall rules..."
-    if ! sudo_.
-
     if ! sudo ufw status | grep -q "active"; then
         echo "⚠ Ensure SSH is on port 22 or manually allowed in UFW to avoid lockout."
         echo "🧱 Enabling UFW..."
