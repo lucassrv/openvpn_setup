@@ -9,7 +9,7 @@ fi
 PUBLIC_IP="$1"
 CLIENT_NAME="$2"
 EASYRSA_DIR=/etc/easy-rsa
-OUTPUT_DIR=~/client-configs
+OUTPUT_DIR=/etc/openvpn/client/
 
 # Validate IP or FQDN
 if [[ "$PUBLIC_IP" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -38,15 +38,20 @@ ping -c 1 8.8.8.8 >/dev/null 2>&1 || { echo "❌ No internet connection"; exit 1
 df -h /var/log | grep -q "100%" && { echo "❌ /var/log filesystem full"; exit 1; }
 
 echo "🧹 Cleaning up existing OpenVPN/Easy-RSA setup..."
-sudo systemctl stop openvpn@server || true
-sudo systemctl stop openvpn || true
-sudo systemctl disable openvpn@server || true
-sudo systemctl disable openvpn || true
-sudo pkill -u root openvpn || true
-if pgrep openvpn >/dev/null; then
-    echo "❌ OpenVPN processes still running."
+sudo systemctl stop openvpn@server
+sudo systemctl stop openvpn
+sudo systemctl disable openvpn@server
+sudo systemctl disable openvpn
+sudo pkill -u root openvpn
+ =sudo pkill -f 'openvpn.*server.conf' || true
+if ps -eo pid,comm,args | grep '[o]penvpn' | grep -v "openvpn_setup.sh" >/dev/null; then
+    echo "❌ OpenVPN processes still running:"
+    ps -eo pid,comm,args | grep '[o]penvpn' | grep -v "openvpn_setup.sh"
     exit 1
+else
+    echo "✅ No OpenVPN processes running."
 fi
+
 sudo apt purge -y openvpn easy-rsa
 sudo rm -rf /etc/openvpn/ /var/log/openvpn/ /etc/easy-rsa/ /var/log/openvpn.log
 sudo apt autoremove -y
@@ -118,10 +123,11 @@ topology subnet
 server 10.8.0.0 255.255.255.0
 ifconfig-pool-persist ipp.txt
 push "redirect-gateway def1 bypass-dhcp"
+push "route 192.168.1.0 255.255.255.0"
 push "dhcp-option DNS 1.1.1.1"
 push "dhcp-option DNS 8.8.8.8"
 keepalive 10 120
-cipher AES-256-CBC
+cipher AES-256-GCM
 user nobody
 group $GROUP
 persist-key
@@ -163,10 +169,10 @@ if ! sudo ufw status | grep -q "active"; then
     sudo ufw --force enable
 fi
 sudo ufw allow 1194/udp
-sudo ufw allow OpenSSH
+sudo ufw allow from 10.8.0.0/24 to any port 22 proto tcp
 sudo ufw reload
 echo "⚠ If using a cloud provider, ensure port 1194/UDP is open in the security group/firewall."
-
+echo "⚠ If using a router, ensure port 1194/UDP is forwarded to $PUBLIC_IP."
 echo "🚀 Starting and enabling OpenVPN service..."
 lsmod | grep tun || { echo "❌ TUN module not loaded"; sudo modprobe tun || exit 1; }
 if sudo netstat -tuln | grep -q ":1194"; then
@@ -205,7 +211,7 @@ persist-key
 persist-tun
 remote-cert-tls server
 auth SHA256
-cipher AES-256-CBC
+cipher AES-256-GCM
 key-direction 1
 verb 3
 
