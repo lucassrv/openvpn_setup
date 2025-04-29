@@ -37,26 +37,47 @@ ping -c 1 8.8.8.8 >/dev/null 2>&1 || { echo "❌ No internet connection"; exit 1
 # Check disk space
 df -h /var/log | grep -q "100%" && { echo "❌ /var/log filesystem full"; exit 1; }
 
-echo "🧹 Cleaning up existing OpenVPN/Easy-RSA setup..."
-sudo systemctl stop openvpn@server
-sudo systemctl stop openvpn
-sudo systemctl disable openvpn@server
-sudo systemctl disable openvpn
-sudo pkill -u root openvpn
- =sudo pkill -f 'openvpn.*server.conf' || true
-if ps -eo pid,comm,args | grep '[o]penvpn' | grep -v "openvpn_setup.sh" >/dev/null; then
+echo "🧹 Checking for existing OpenVPN/Easy-RSA setup..."
+
+if systemctl list-units --type=service --all | grep -q 'openvpn@server'; then
+    echo "🔻 Stopping OpenVPN services..."
+    sudo systemctl stop openvpn@server || true
+    sudo systemctl disable openvpn@server || true
+else
+    echo "ℹ️ openvpn@server service not found, skipping..."
+fi
+
+if systemctl list-units --type=service --all | grep -q 'openvpn.service'; then
+    sudo systemctl stop openvpn || true
+    sudo systemctl disable openvpn || true
+else
+    echo "ℹ️ openvpn service not found, skipping..."
+fi
+
+echo "🔍 Killing leftover OpenVPN processes..."
+sudo pkill -u root openvpn || true
+sudo pkill -f 'openvpn.*server.conf' || true
+
+if ps -eo pid,comm,args | grep '[o]penvpn' | grep -v "$0" >/dev/null; then
     echo "❌ OpenVPN processes still running:"
-    ps -eo pid,comm,args | grep '[o]penvpn' | grep -v "openvpn_setup.sh"
+    ps -eo pid,comm,args | grep '[o]penvpn' | grep -v "$0"
     exit 1
 else
     echo "✅ No OpenVPN processes running."
 fi
 
-sudo apt purge -y openvpn easy-rsa
+echo "🗑 Removing OpenVPN and Easy-RSA files if present..."
+if dpkg -l | grep -q 'openvpn\|easy-rsa'; then
+    sudo apt purge -y openvpn easy-rsa || true
+    sudo apt autoremove -y || true
+else
+    echo "ℹ️ openvpn/easy-rsa packages not installed."
+fi
+
 sudo rm -rf /etc/openvpn/ /var/log/openvpn/ /etc/easy-rsa/ /var/log/openvpn.log
-sudo apt autoremove -y
 sudo apt clean
 sudo apt update
+
 
 echo "📦 Installing OpenVPN and Easy-RSA..."
 sudo DEBIAN_FRONTEND=noninteractive apt install -y openvpn easy-rsa iptables-persistent
